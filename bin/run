@@ -28,6 +28,7 @@ save_hashes.uniq!
 bucket   = ENV['AWS_S3_BUCKET']
 keep     = ENV['KEEP'] || 3
 master_keep = ENV['MASTER_KEEP'] || 20
+release_keep = ENV['RELEASE_KEEP'] || 20 
 
 objects  = []
 last_key = nil
@@ -47,10 +48,14 @@ end.each do |obj|
   resp = s3.head_object({ bucket: bucket, key: obj.key })
     if resp.to_h[:metadata]['branch'] == 'master' 
          puts "found master at #{obj.key}"
-     end
+    end
     if resp.to_h[:metadata]['branch'] == 'master' and TimeDifference.between(resp.last_modified, Time.now).in_days < master_keep.to_f
         puts "skipping #{obj.key} because it is master"
         next
+    end
+    if resp.to_h[:metadata]['branch'].include? "release" and TimeDifference.between(resp.last_modified, Time.now).in_days < release_keep.to_f
+      puts "skipping #{obj.key} because it is release"
+      next
     end
   puts "deleting #{obj.key}"
   begin 
@@ -70,6 +75,10 @@ if exclusive_hash
     if resp.to_h[:metadata]['branch'] == 'master' and TimeDifference.between(resp.last_modified, Time.now).in_days < master_keep.to_f
         puts "skipping #{obj.key} because it is master"
         next
+    end
+    if resp.to_h[:metadata]['branch'].include? "release" and TimeDifference.between(resp.last_modified, Time.now).in_days < release_keep.to_f
+      puts "skipping #{obj.key} because it is release"
+      next
     end
     puts "deleting exclusive #{obj.key}"
     s3.delete_object(bucket: bucket, key: obj.key)
